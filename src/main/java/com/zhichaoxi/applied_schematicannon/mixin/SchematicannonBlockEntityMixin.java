@@ -2,10 +2,14 @@ package com.zhichaoxi.applied_schematicannon.mixin;
 
 import appeng.api.config.Actionable;
 import appeng.api.networking.IGridNode;
+import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
+import appeng.api.stacks.GenericStack;
 import appeng.api.storage.MEStorage;
 import appeng.blockentity.misc.InterfaceBlockEntity;
+import appeng.core.definitions.AEItems;
+import appeng.helpers.InterfaceLogic;
 import com.simibubi.create.content.schematics.cannon.MaterialChecklist;
 import com.simibubi.create.content.schematics.cannon.SchematicannonBlockEntity;
 import com.simibubi.create.content.schematics.cannon.SchematicannonInventory;
@@ -47,9 +51,10 @@ public abstract class SchematicannonBlockEntityMixin extends BlockEntity {
     @Shadow public abstract void findInventories();
 
     @Shadow public MaterialChecklist checklist;
-    @Unique protected ArrayList<IGridNode> SchematicannonBlockEntityMixin$attachedMENetwork = new ArrayList<>();
-    @Unique IActionSource SchematicannonActionHost = IActionSource.empty();
+    @Shadow public boolean skipMissing;
+    @Unique protected ArrayList<InterfaceBlockEntity> SchematicannonBlockEntityMixin$attachedMEInterface = new ArrayList<>();
 
+    @Unique IActionSource SchematicannonActionHost = IActionSource.empty();
     public SchematicannonBlockEntityMixin(BlockEntityType<?> type, BlockPos pos, BlockState blockState) {
         super(type, pos, blockState);
     }
@@ -57,10 +62,14 @@ public abstract class SchematicannonBlockEntityMixin extends BlockEntity {
     @Inject(method = "updateChecklist", at = @At(value = "INVOKE", target = "Lcom/simibubi/create/content/schematics/cannon/SchematicannonBlockEntity;findInventories()V"))
     public void SchematicannonBlockEntityMixin$updateChecklist(CallbackInfo ci) {
         findInventories();
-        for (IGridNode cap : SchematicannonBlockEntityMixin$attachedMENetwork) {
-            if (cap == null)
+        for (InterfaceBlockEntity be : SchematicannonBlockEntityMixin$attachedMEInterface) {
+            if (be == null)
                 continue;
-            MEStorage storage = cap.getGrid()
+            IGridNode node = be.getInterfaceLogic().getActionableNode();
+            if (node == null) {
+                continue;
+            }
+            MEStorage storage = node.getGrid()
                     .getStorageService().getInventory();
             var set = storage.getAvailableStacks().keySet();
             for(AEKey key : set) {
@@ -102,8 +111,12 @@ public abstract class SchematicannonBlockEntityMixin extends BlockEntity {
                     .shrink(1);
         else {
             boolean externalGunpowderFound = false;
-            for (IGridNode cap : SchematicannonBlockEntityMixin$attachedMENetwork) {
-                MEStorage storage = cap.getGrid().getStorageService()
+            for (InterfaceBlockEntity be : SchematicannonBlockEntityMixin$attachedMEInterface) {
+                IGridNode node = be.getInterfaceLogic().getActionableNode();
+                if (node == null) {
+                    continue;
+                }
+                MEStorage storage = node.getGrid().getStorageService()
                         .getInventory();
 
                 if (storage.extract(AEItemKey.of(Items.GUNPOWDER), 1, Actionable.MODULATE, SchematicannonActionHost) == 0)
@@ -126,7 +139,7 @@ public abstract class SchematicannonBlockEntityMixin extends BlockEntity {
 
     @Inject(method = "findInventories", at = @At("RETURN"))
     public void findInventories$findMENetwork(CallbackInfo ci) {
-        SchematicannonBlockEntityMixin$attachedMENetwork.clear();
+        SchematicannonBlockEntityMixin$attachedMEInterface.clear();
         for (Direction facing : Iterate.directions) {
 
             if (level != null && !level.isLoaded(worldPosition.relative(facing))) continue;
@@ -136,10 +149,7 @@ public abstract class SchematicannonBlockEntityMixin extends BlockEntity {
                 blockEntity = level.getBlockEntity(worldPosition.relative(facing));
             }
             if (blockEntity instanceof InterfaceBlockEntity) {
-                IGridNode GridNode = ((InterfaceBlockEntity) blockEntity).getInterfaceLogic().getActionableNode();
-                if (GridNode != null) {
-                    SchematicannonBlockEntityMixin$attachedMENetwork.add(GridNode);
-                }
+                SchematicannonBlockEntityMixin$attachedMEInterface.add((InterfaceBlockEntity) blockEntity);
             }
         }
     }
