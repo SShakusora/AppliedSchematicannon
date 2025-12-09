@@ -153,14 +153,10 @@ public abstract class SchematicannonBlockEntityMixin extends BlockEntity {
         }
     }
 
-    @Inject(method = "grabItemsFromAttachedInventories", at = @At("TAIL"), cancellable = true)
+    @Inject(method = "grabItemsFromAttachedInventories", at = @At("HEAD"), cancellable = true)
     public void grabItemsFromAttachedInventories$grabFromMENetwork(ItemRequirement.StackRequirement required, boolean simulate,
                                                                    CallbackInfoReturnable<Boolean> cir) {
-        if (cir.getReturnValue()) {
-            return;
-        }
         ItemRequirement.ItemUseType usage = required.usage;
-
         if (usage == ItemRequirement.ItemUseType.DAMAGE) {
             for (InterfaceBlockEntity be : SchematicannonBlockEntityMixin$attachedMEInterface) {
                 if (be != null) {
@@ -185,7 +181,7 @@ public abstract class SchematicannonBlockEntityMixin extends BlockEntity {
                                 ItemStack stack = new ItemStack(((AEItemKey) key).getItem(), (int) amount);
                                 stack.setDamageValue(stack.getDamageValue() + 1);
                                 if (stack.getDamageValue() <= stack.getMaxDamage()) {
-                                    storage.insert(AEItemKey.of(stack), stack.getCount(), Actionable.MODULATE, null);
+                                    storage.insert(AEItemKey.of(stack), stack.getCount(), Actionable.MODULATE, SchematicannonActionHost);
                                 }
                             }
 
@@ -194,8 +190,6 @@ public abstract class SchematicannonBlockEntityMixin extends BlockEntity {
                     }
                 }
             }
-
-            cir.setReturnValue(false);
         }
 
         // Find and remove
@@ -246,7 +240,6 @@ public abstract class SchematicannonBlockEntityMixin extends BlockEntity {
                 break;
             }
         }
-
-        cir.setReturnValue(success);
+        if(success){cir.setReturnValue(success);}
     }
 }
