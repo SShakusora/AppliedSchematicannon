@@ -186,16 +186,24 @@ public abstract class SchematicannonBlockEntityMixin extends BlockEntity {
         // Find and remove
         boolean success = false;
         long amountFound = 0;
-        for (IGridNode cap : SchematicannonBlockEntityMixin$attachedMENetwork) {
-            if (cap != null)
-            {
-                MEStorage storage = cap.getGrid()
-                        .getStorageService().getInventory();
-                amountFound += storage.extract(AEItemKey.of(required.stack),
-                        required.stack.getCount(), Actionable.SIMULATE, SchematicannonActionHost);
+        for (InterfaceBlockEntity be : SchematicannonBlockEntityMixin$attachedMEInterface) {
+            InterfaceLogic logic = be.getInterfaceLogic();
+            IGridNode node = logic.getActionableNode();
+            if (node == null) {
+                continue;
             }
+
+            MEStorage storage = node.getGrid()
+                    .getStorageService().getInventory();
+            amountFound += storage.extract(AEItemKey.of(required.stack),
+                    required.stack.getCount(), Actionable.SIMULATE, SchematicannonActionHost);
             if (amountFound < required.stack.getCount())
             {
+                if (!skipMissing && logic.getInstalledUpgrades(AEItems.CRAFTING_CARD.asItem()) > 0) {
+                    ItemStack stack = required.stack.copy();
+                    stack.setCount(64);
+                    logic.getConfig().setStack(0, GenericStack.fromItemStack(stack));
+                }
                 continue;
             }
 
@@ -205,10 +213,13 @@ public abstract class SchematicannonBlockEntityMixin extends BlockEntity {
 
         if (!simulate && success) {
             amountFound = 0;
-            for (IGridNode cap : SchematicannonBlockEntityMixin$attachedMENetwork) {
-                if (cap != null)
-                {
-                    MEStorage storage = cap.getGrid()
+            for (InterfaceBlockEntity be : SchematicannonBlockEntityMixin$attachedMEInterface) {
+                if (be != null) {
+                    IGridNode node = be.getInterfaceLogic().getActionableNode();
+                    if (node == null) {
+                        continue;
+                    }
+                    MEStorage storage = node.getGrid()
                             .getStorageService().getInventory();
                     amountFound += storage.extract(AEItemKey.of(required.stack),
                             required.stack.getCount(), Actionable.MODULATE, SchematicannonActionHost);
@@ -220,7 +231,6 @@ public abstract class SchematicannonBlockEntityMixin extends BlockEntity {
                 break;
             }
         }
-
-        cir.setReturnValue(success);
+        if(success){cir.setReturnValue(success);}
     }
 }
